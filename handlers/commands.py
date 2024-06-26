@@ -20,7 +20,7 @@ async def start(message: Message):
         [KeyboardButton(text="/Facebook")],
         [KeyboardButton(text="/бизнес_клуб_Атланты")],  
         [KeyboardButton(text="/Ostavit_zayavku")],
-        [KeyboardButton(text="/add_client")],
+        # [KeyboardButton(text="/add_client1")],
         [KeyboardButton(text="/end")]
     ]
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
@@ -99,7 +99,7 @@ from aiogram.fsm.context import FSMContext
 from main import *
 
 
-ADMIN_CHAT_ID = ("5648090698")  # вставляете свой chat id
+ADMIN_CHAT_ID = ("6673864170")  # вставляете свой chat id
 bot_instance: Bot = None  # Глобальная переменная для хранения экземпляра бота
 
 
@@ -153,24 +153,16 @@ async def process_chat_id(message: Message, state: FSMContext):
 @router.message(Form.experience)
 async def process_experience(message: Message, state: FSMContext):
     await state.update_data(experience=message.text)
-    await state.set_state(Form.experience)
+    data = await state.get_data()
 
-
-
-
-
-
-
-
-
-
-    # Отправляем сообщение пользователю
-    await message.answer(
-        f"Заявка принята! \n"
-        # f"ФИО: {data['name']}\n"
-        # f"Номер телефона: {data['phone_number']}\n"
-        # f"Chat_id: {data["chat_id"]}\n"
-        # f"Опыт работы:{data["experience"]}"
+    # Формируем сообщение о принятой заявке
+    response_message = (
+        f"Заявка принята!\n"
+        f"ФИО: {data['name']}\n"
+        f"Номер телефона: {data['phone_number']}\n"
+        f"Chat_id: {data['chat_id']}\n"
+        f"Опыт работы: {data['experience']}\n"
+        f"Новый клиент! Позвоните для подтверждения заявки на номер +996997777733!"
     )
 
 
@@ -185,6 +177,11 @@ async def process_experience(message: Message, state: FSMContext):
 
     await state.clear()
 
+    # Отправляем сообщение пользователю
+    await message.answer(response_message)
+
+    # Сбрасываем состояние FSM (если нужно начать новую заявку сразу)
+    await state.finish()
 
 
 
@@ -196,170 +193,3 @@ async def process_experience(message: Message, state: FSMContext):
 
 
 
-
-from aiogram.types import Message,CallbackQuery,FSInputFile,ReplyKeyboardRemove
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
-
-class AddClientStates(StatesGroup):
-    first_name = State()
-    last_name = State()
-    age = State()
-    phone = State()
-    chat_id = State()
-    experience = State()
-
-
-
-@router.message(Command("add_client"))
-async def cmd_add_client(message:Message,state: FSMContext):
-    await state.set_state(AddClientStates.first_name)
-    await message.answer("Enter first_name:")
-    
-
-@router.message(AddClientStates.first_name)
-async def process_first_name(message: Message, state: FSMContext) -> None:
-    await state.update_data(first_name=message.text)
-    await state.set_state(AddClientStates.last_name)
-    await message.answer("Enter last_name:")
-
-
-@router.message(AddClientStates.last_name)
-async def process_last_name(message: Message, state: FSMContext) -> None:
-    await state.update_data(last_name=message.text)
-    await state.set_state(AddClientStates.age)
-    await message.answer("Enter age:")
-
-
-@router.message(AddClientStates.age)
-async def process_age(message: Message, state: FSMContext) -> None:
-    await state.update_data(age=message.text)
-    await state.set_state(AddClientStates.phone)
-    await message.answer("Enter phone:")
-
-@router.message(AddClientStates.phone)
-async def process_phone(message: Message, state: FSMContext) -> None:
-    await state.update_data(phone=int(message.text))
-    await state.set_state(AddClientStates.chat_id)
-    await message.answer("Enter chat_id:")
-
-@router.message(AddClientStates.chat_id)
-async def process_chat_id(message: Message, state: FSMContext) -> None:
-    await state.update_data(chat_id=message.text)
-    await state.set_state(AddClientStates.experience)
-    await message.answer("Enter experience:")
-
-@router.message(AddClientStates.experience)
-async def process_experience(message: Message, state: FSMContext) -> None:
-    await state.update_data(experience=int(message.text))
-    data = await state.get_data()
-    await show_summary(message, data)
-    await state.clear()
-
-async def show_summary(message: Message, data: dict[str, any]):
-    client = Client(first_name=data["first_name"],
-            last_name=data["last_name"],
-            age=data["age"],
-            phone=data["phone"],
-            chat_id=data["chat_id"], 
-            experience=data["experience"])
-    result = await create_client(client)
-    await message.answer(text="Успешно добавили клиента!", reply_markup=ReplyKeyboardRemove())
-
-
-
-
-
-
-
-
-from sqlalchemy import Integer,String,Text,DECIMAL,ForeignKey
-from sqlalchemy.orm import (relationship,Mapped,mapped_column,
-                            DeclarativeBase,Session)
-from sqlalchemy.ext.asyncio import (create_async_engine,AsyncSession,
-                                    async_sessionmaker,AsyncAttrs,
-                                    AsyncEngine)
-
-from config import MYSQL_URL
-
-engine = create_async_engine(MYSQL_URL,echo=True)
-async_session = async_sessionmaker(engine, expire_on_commit=False)
-
-class Base(DeclarativeBase,AsyncAttrs):
-    pass
-
-
-class CLIENT(Base):
-    __tablename__ = 'CLIENT'
-
-    Id:Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
-    first_name:Mapped[str] = mapped_column(String(20))
-    last_name:Mapped[str] = mapped_column(String(20))
-    age:Mapped[int] = mapped_column(Integer)
-    # phone:Mapped[int] = mapped_column(Integer(20))
-    chat_id:Mapped[int] = mapped_column(Integer)
-    experience:Mapped[int] = mapped_column(Integer)
-    
-    
-
-
-async def main():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        
-        
-        async with async_session() as session:
-            department = CLIENT(
-                            Id = 1,
-                            first_name = 'Ivan',
-                            last_name = 'Ivamov',
-                            age = 34,
-                            phone = 1234567890,
-                            chat_id = 5648090698,
-                            experience = 6,
-                            )
-            session.add(department)
-            await session.commit()
-
-
-
-async def get_departments():
-    async with async_session() as session:
-        result = await session.scalars(select(CLIENT))
-        return result
-
-
-async def get_clients(department_id):
-    async with async_session() as session:
-        result = await session.scalars(select(CLIENT).where(
-            CLIENT.department_id == department_id))
-        return result
-
-
-async def get_client(CLIENT_id):
-    async with async_session() as session:
-        result = await session.scalar(select(CLIENT).where(
-            CLIENT.id == CLIENT_id))
-        return result
-
-
-async def get_client():
-    async with async_session() as session:
-        result = await session.scalars(select(CLIENT))
-        return result
-    
-
-async def delete_client(rab_id):
-    async with async_session() as session:
-        await session.execute(delete(CLIENT).where(
-            CLIENT.id == CLIENT_id))
-        await session.commit()
-
-
-async def create_CLIENT(rab):
-    async with async_session() as session:
-        
-        session.add(rab)
-        await session.commit()
-        await session.refresh(rab)
-        return rab
