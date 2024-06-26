@@ -265,3 +265,101 @@ async def show_summary(message: Message, data: dict[str, any]):
             experience=data["experience"])
     result = await create_client(client)
     await message.answer(text="Успешно добавили клиента!", reply_markup=ReplyKeyboardRemove())
+
+
+
+
+
+
+
+
+from sqlalchemy import Integer,String,Text,DECIMAL,ForeignKey
+from sqlalchemy.orm import (relationship,Mapped,mapped_column,
+                            DeclarativeBase,Session)
+from sqlalchemy.ext.asyncio import (create_async_engine,AsyncSession,
+                                    async_sessionmaker,AsyncAttrs,
+                                    AsyncEngine)
+
+from config import MYSQL_URL
+
+engine = create_async_engine(MYSQL_URL,echo=True)
+async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+class Base(DeclarativeBase,AsyncAttrs):
+    pass
+
+
+class CLIENT(Base):
+    __tablename__ = 'CLIENT'
+
+    Id:Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
+    first_name:Mapped[str] = mapped_column(String(20))
+    last_name:Mapped[str] = mapped_column(String(20))
+    age:Mapped[int] = mapped_column(Integer)
+    # phone:Mapped[int] = mapped_column(Integer(20))
+    chat_id:Mapped[int] = mapped_column(Integer)
+    experience:Mapped[int] = mapped_column(Integer)
+    
+    
+
+
+async def main():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
+        
+        async with async_session() as session:
+            department = CLIENT(
+                            Id = 1,
+                            first_name = 'Ivan',
+                            last_name = 'Ivamov',
+                            age = 34,
+                            phone = 1234567890,
+                            chat_id = 5648090698,
+                            experience = 6,
+                            )
+            session.add(department)
+            await session.commit()
+
+
+
+async def get_departments():
+    async with async_session() as session:
+        result = await session.scalars(select(CLIENT))
+        return result
+
+
+async def get_clients(department_id):
+    async with async_session() as session:
+        result = await session.scalars(select(CLIENT).where(
+            CLIENT.department_id == department_id))
+        return result
+
+
+async def get_client(CLIENT_id):
+    async with async_session() as session:
+        result = await session.scalar(select(CLIENT).where(
+            CLIENT.id == CLIENT_id))
+        return result
+
+
+async def get_client():
+    async with async_session() as session:
+        result = await session.scalars(select(CLIENT))
+        return result
+    
+
+async def delete_client(rab_id):
+    async with async_session() as session:
+        await session.execute(delete(CLIENT).where(
+            CLIENT.id == CLIENT_id))
+        await session.commit()
+
+
+async def create_CLIENT(rab):
+    async with async_session() as session:
+        
+        session.add(rab)
+        await session.commit()
+        await session.refresh(rab)
+        return rab
